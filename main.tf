@@ -9,64 +9,44 @@ terraform {
 
 provider "aws" {
   region = "us-east-1"
-}
+ }
 
-resource "aws_iam_policy" "policy" {
-  name        = "-policy"
-  description = "My test policy"
 
-  policy = <<EOT
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": [
-        "s3:*"
-      ],
-      "Effect": "Allow",
-      "Resource": "*"
-    }
+resource "aws_iam_role" "instance_role" {
+  name = "full_admin_access"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
     ]
-}
-EOT
-}
-
-resource "aws_iam_role" "role" {
-  name = "s3-access-to-ec2-role"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "ec2.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
+  })
 }
 
-resource "aws_iam_role_policy_attachment" "test-attach" {
-  role       = aws_iam_role.role.name
-  policy_arn = aws_iam_policy.policy.arn
+# Step 3: Attach full admin access policy to the IAM role
+resource "aws_iam_policy_attachment" "instance_policy_attachment" {
+  name       = "instance-policy-attachment"
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"  # Full admin access policy ARN
+  roles      = [aws_iam_role.full_admin_access.id]
 }
 
-resource "aws_iam_instance_profile" "profile" {
-  name = "profile"
-  role = aws_iam_role.role.name
-}
+# Step 4: Launch EC2 instance with IAM role
 
 resource "aws_instance" "ec2" {
-  ami           = "ami-05548f9cecf47b442"
-  instance_type = "t2.micro"
-  key_name = "akshay-key-nv"
+  ami           = "ami-05548f9cecf47b442" 
+  instance_type = "t2.micro"             
+
+  key_name      = "akshaykey"    
+  iam_instance_profile = aws_iam_role.instance_role.name
+
   vpc_security_group_ids = [aws_security_group.allow_tls.id]
-  iam_instance_profile = aws_iam_instance_profile.profile.name
+
   user_data = <<EOF
 #!/bin/bash
 BUCKET=artifactory-fdecb1
@@ -85,8 +65,9 @@ sudo chmod 755 *
 sudo ./catalina.sh start 
 
   EOF
-   tags = {
-    Name = "tf-ec2-sample"
+
+  tags = {
+    Name = "allow_tls"
   }
 }
 
@@ -101,21 +82,18 @@ resource "aws_security_group" "allow_tls" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  ingress {
+ ingress {
     description = "TLS from VPC"
     from_port   = 8080
     to_port     = 8080
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "allow_tls"
   }
 }
