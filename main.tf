@@ -76,7 +76,6 @@ sudo unzip apache-tomcat-8.5.91.zip
 sudo mv apache-tomcat-8.5.91 /mnt/tomcat
 KEY=`aws s3 ls $BUCKET --recursive | sort | tail -n 1 | awk '{print $4}'`
 aws s3 cp s3://$BUCKET/$KEY /mnt/tomcat/webapps/
-sudo mv /mnt/tomcat/webapps/$KEY /mnt/tomcat/webapps/student
 sudo chown -R ec2-user: /mnt/tomcat
 cd /mnt/tomcat/bin
 sudo chmod 755 *
