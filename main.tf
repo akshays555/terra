@@ -8,6 +8,7 @@ terraform {
 }
 provider "aws" {
   region = "us-east-1"
+  profile = "akshay-dev"
 }
 
 # Step 1: Create a custom IAM policy with full admin access
